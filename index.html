@@ -1,1 +1,196 @@
-https://console.firebase.google.com/project/tpipi-6c1b8/database/tpipi-6c1b8-default-rtdb/data/~2F?hl=vi
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP8266 Water Tank Monitor - Firebase</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #eef2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 320px;
+        }
+        .tank-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .tank-id {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 20px;
+        }
+        .tank-wrapper {
+            position: relative;
+            width: 160px;
+            height: 240px;
+            margin: 0 auto;
+        }
+        .tank {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid #7f8c8d;
+            border-radius: 80px / 20px;
+            background: rgba(230, 238, 248, 0.4);
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .ruler {
+            position: absolute;
+            right: -15px;
+            top: 15px;
+            bottom: 15px;
+            width: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .ruler-line {
+            width: 100%;
+            height: 2px;
+            background-color: #95a5a6;
+        }
+        .water {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(180deg, #3498db, #2980b9);
+            transition: height 0.6s ease-in-out, background 0.4s ease;
+        }
+        .water-surface {
+            position: absolute;
+            top: -12px;
+            left: 0;
+            width: 100%;
+            height: 24px;
+            background: #5dede7;
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+        .water.low {
+            background: linear-gradient(180deg, #e74c3c, #c0392b);
+        }
+        .water.low .water-surface {
+            background: #ff7675;
+        }
+        .percent-label {
+            position: absolute;
+            right: -60px;
+            font-weight: bold;
+            font-size: 16px;
+            color: #2980b9;
+            transition: bottom 0.6s ease-in-out;
+        }
+        .percent-label.low {
+            color: #c0392b;
+        }
+        .info-panel {
+            margin-top: 30px;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 10px;
+font-size: 14px;
+            color: #555;
+            text-align: left;
+        }
+        .info-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tank-title">Tank 1</div>
+    <div class="tank-id">(Firebase Connected)</div>
+
+    <div class="tank-wrapper">
+        <div class="tank">
+            <div class="water" id="waterLevel">
+                <div class="water-surface"></div>
+            </div>
+        </div>
+        
+        <div class="ruler">
+            <div class="ruler-line"></div>
+            <div class="ruler-line"></div>
+            <div class="ruler-line"></div>
+            <div class="ruler-line"></div>
+            <div class="ruler-line"></div>
+            <div class="ruler-line"></div>
+            <div class="ruler-line"></div>
+            <div class="ruler-line"></div>
+            <div class="ruler-line"></div>
+        </div>
+
+        <div class="percent-label" id="percentText" style="bottom: 0%;">0%</div>
+    </div>
+
+    <div class="info-panel">
+        <div>Điện áp A0: <span class="info-value" id="voltageVal">0.00 V</span></div>
+        <div>Tín hiệu ADC: <span class="info-value" id="rawVal">0 / 1023</span></div>
+        <div>Trạng thái: <span class="info-value" id="statusVal">Đang tải...</span></div>
+    </div>
+</div>
+
+<script>
+    const FIREBASE_URL = "https://he-thong-bon-chua-default-rtdb.asia-southeast1.firebasedatabase.app/tank_1.json";
+
+    function updateTankData() {
+        fetch(FIREBASE_URL)
+            .then(response => {
+                if (!response.ok) throw new Error("Kết nối thất bại");
+                return response.json();
+            })
+            .then(data => {
+                if (!data) return;
+
+                let percent = data.percent || 0;
+                let water = document.getElementById('waterLevel');
+                let percentText = document.getElementById('percentText');
+
+                water.style.height = percent + '%';
+                percentText.style.bottom = Math.max(percent - 5, 0) + '%';
+                percentText.innerText = percent + '%';
+
+                if (percent < 20) {
+                    water.classList.add('low');
+                    percentText.classList.add('low');
+                } else {
+                    water.classList.remove('low');
+                    percentText.classList.remove('low');
+                }
+
+                document.getElementById('voltageVal').innerText = (data.voltage || 0).toFixed(2) + ' V';
+                document.getElementById('rawVal').innerText = (data.raw || 0) + ' / 1023';
+                document.getElementById('statusVal').innerText = 'Trực tuyến';
+                document.getElementById('statusVal').style.color = 'green';
+            })
+            .catch(error => {
+                document.getElementById('statusVal').innerText = 'Mất kết nối';
+document.getElementById('statusVal').style.color = 'red';
+                console.error('Firebase Error:', error);
+            });
+    }
+
+    setInterval(updateTankData, 1000);
+    updateTankData();
+</script>
+</body>
+</html>
